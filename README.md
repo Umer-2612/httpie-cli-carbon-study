@@ -136,21 +136,6 @@ Each workflow measures energy at the following stages using `green-coding-soluti
 
 ---
 
-## Citation
-
-If you use this repository or the methodology, please cite:
-
-```
-@inproceedings{yourname2026greener,
-  title     = {Towards Greener Pipelines: Measuring and Optimising Carbon Emissions in CI/CD Workflows},
-  author    = {Your Name},
-  booktitle = {IEEE Conference on ...},
-  year      = {2026}
-}
-```
-
----
-
 ## Acknowledgements
 
 - [HTTPie CLI](https://github.com/httpie/cli) — subject project
