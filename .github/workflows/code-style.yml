@@ -1,0 +1,106 @@
+# ============================================================
+# C1 — Baseline: Code Style Workflow with Eco-CI Instrumentation
+# Branch: experiment/c1-baseline
+# ============================================================
+name: Code Style Check
+
+on:
+  push:
+    branches:
+      - master
+      - 'experiment/**'
+    paths:
+      - .github/workflows/code-style.yml
+      - extras/*.py
+      - httpie/**/*.py
+      - setup.py
+      - tests/**/*.py
+  pull_request:
+    paths:
+      - .github/workflows/code-style.yml
+      - extras/*.py
+      - httpie/**/*.py
+      - setup.py
+      - tests/**/*.py
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (e.g., research run C1)'
+        required: false
+        default: 'Manual research run'
+
+jobs:
+  code-style:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------------------------------------
+      # Eco-CI: start total measurement for this job
+      # ----------------------------------------------------------
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+        continue-on-error: true
+
+      # ----------------------------------------------------------
+      # Stage 1: Checkout
+      # ----------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Eco-CI — checkout measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'checkout'
+        continue-on-error: true
+
+      # ----------------------------------------------------------
+      # Stage 2: Python setup + dependency installation
+      # ----------------------------------------------------------
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies (venv)
+        run: make venv
+
+      - name: Eco-CI — dependency installation measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dependency-installation'
+        continue-on-error: true
+
+      # ----------------------------------------------------------
+      # Stage 3: Lint / code style check
+      # ----------------------------------------------------------
+      - name: Run code style checks
+        run: make codestyle
+
+      - name: Eco-CI — lint measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'lint'
+        continue-on-error: true
+
+      # ----------------------------------------------------------
+      # Eco-CI: display final results and upload JSON artifact
+      # ----------------------------------------------------------
+      - name: Eco-CI — display results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          json-output: true
+        continue-on-error: true
+
+      - name: Upload Eco-CI results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eco-ci-results-code-style
+          path: /tmp/eco-ci/
+          retention-days: 30

@@ -1,0 +1,275 @@
+# ============================================================
+# C3 / C4 — Consolidated CI Workflow with Eco-CI Instrumentation
+#
+# C3 (experiment/c3-consolidation):
+#   - All three stages (lint, test, coverage) in one file
+#   - Single shared pip install step
+#   - No pip caching
+#   - No path filters beyond the file itself
+#
+# C4 (experiment/c4-combined):
+#   - Everything in C3, PLUS:
+#   - cache: pip on setup-python steps
+#   - paths filter: ['httpie/**', 'tests/**', 'setup.*', 'setup.cfg']
+#
+# To switch between C3 and C4:
+#   C3 → remove cache lines and path filter (marked below)
+#   C4 → uncomment cache lines and path filter (marked below)
+# ============================================================
+name: CI Consolidated
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+      - 'experiment/**'
+    # ---- C4: uncomment the paths block below ----
+    # paths:
+    #   - 'httpie/**'
+    #   - 'tests/**'
+    #   - 'setup.*'
+    #   - 'setup.cfg'
+    #   - '.github/workflows/ci-consolidated.yml'
+  pull_request:
+    # ---- C4: uncomment the paths block below ----
+    # paths:
+    #   - 'httpie/**'
+    #   - 'tests/**'
+    #   - 'setup.*'
+    #   - 'setup.cfg'
+    #   - '.github/workflows/ci-consolidated.yml'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (e.g., research run C3/C4)'
+        required: false
+        default: 'Manual research run'
+
+# ============================================================
+# JOB 1 — Lint / Code Style
+# ============================================================
+jobs:
+  lint:
+    name: Code Style Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+        continue-on-error: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Eco-CI — checkout measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'checkout'
+        continue-on-error: true
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          # ---- C4: uncomment the cache line below ----
+          # cache: pip
+
+      - name: Install dependencies for lint
+        run: make venv
+
+      - name: Eco-CI — dependency installation measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dependency-installation'
+        continue-on-error: true
+
+      - name: Run code style checks
+        run: make codestyle
+
+      - name: Eco-CI — lint measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'lint'
+        continue-on-error: true
+
+      - name: Eco-CI — display results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          json-output: true
+        continue-on-error: true
+
+      - name: Upload Eco-CI results — lint
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eco-ci-results-consolidated-lint
+          path: /tmp/eco-ci/
+          retention-days: 30
+
+# ============================================================
+# JOB 2 — Tests (matrix: Python 3.10, 3.11, 3.12 on ubuntu)
+# ============================================================
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: lint
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - '3.12'
+          - '3.11'
+          - '3.10'
+
+    steps:
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+        continue-on-error: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Eco-CI — checkout measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'checkout'
+        continue-on-error: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          # ---- C4: uncomment the cache line below ----
+          # cache: pip
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Eco-CI — dependency installation measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dependency-installation'
+        continue-on-error: true
+
+      - name: Run tests
+        run: make test
+
+      - name: Eco-CI — test execution measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'test-execution'
+        continue-on-error: true
+
+      - name: Eco-CI — display results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          json-output: true
+        continue-on-error: true
+
+      - name: Upload Eco-CI results — tests py${{ matrix.python-version }}
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eco-ci-results-consolidated-tests-py${{ matrix.python-version }}
+          path: /tmp/eco-ci/
+          retention-days: 30
+
+# ============================================================
+# JOB 3 — Coverage
+# ============================================================
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+        continue-on-error: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Eco-CI — checkout measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'checkout'
+        continue-on-error: true
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          # ---- C4: uncomment the cache line below ----
+          # cache: pip
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Eco-CI — dependency installation measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dependency-installation'
+        continue-on-error: true
+
+      - name: Run tests with coverage
+        run: make test-cover
+
+      - name: Eco-CI — coverage measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'coverage'
+        continue-on-error: true
+
+      - name: Upload to Codecov
+        run: make codecov-upload
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_REPO_TOKEN }}
+        continue-on-error: true
+
+      - name: Test distribution build
+        run: make test-dist
+
+      - name: Eco-CI — dist-test measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dist-test'
+        continue-on-error: true
+
+      - name: Eco-CI — display results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          json-output: true
+        continue-on-error: true
+
+      - name: Upload Eco-CI results — coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eco-ci-results-consolidated-coverage
+          path: /tmp/eco-ci/
+          retention-days: 30
