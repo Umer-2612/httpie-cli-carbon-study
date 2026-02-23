@@ -27,21 +27,21 @@ on:
     branches:
       - master
       - 'experiment/**'
-    # ---- C4: uncomment the paths block below ----
-    # paths:
-    #   - 'httpie/**'
-    #   - 'tests/**'
-    #   - 'setup.*'
-    #   - 'setup.cfg'
-    #   - '.github/workflows/ci-consolidated.yml'
+    # Path filter active (C4)
+    paths:
+      - 'httpie/**'
+      - 'tests/**'
+      - 'setup.*'
+      - 'setup.cfg'
+      - '.github/workflows/ci-consolidated.yml'
   pull_request:
-    # ---- C4: uncomment the paths block below ----
-    # paths:
-    #   - 'httpie/**'
-    #   - 'tests/**'
-    #   - 'setup.*'
-    #   - 'setup.cfg'
-    #   - '.github/workflows/ci-consolidated.yml'
+    # Path filter active (C4)
+    paths:
+      - 'httpie/**'
+      - 'tests/**'
+      - 'setup.*'
+      - 'setup.cfg'
+      - '.github/workflows/ci-consolidated.yml'
   workflow_dispatch:
     inputs:
       reason:
@@ -78,8 +78,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          # ---- C4: uncomment the cache line below ----
-          # cache: pip
+
+          cache: pip
 
       - name: Install dependencies for lint
         run: make venv
@@ -153,8 +153,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          # ---- C4: uncomment the cache line below ----
-          # cache: pip
+
+          cache: pip
 
       - name: Install dependencies
         run: make install
@@ -220,8 +220,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          # ---- C4: uncomment the cache line below ----
-          # cache: pip
+
+          cache: pip
 
       - name: Install dependencies
         run: make install
