@@ -145,5 +145,66 @@ All changes committed and pushed to origin. Branches are now in a state where `w
 
 ---
 
+---
+
+### [2026-03-29] — Session 2: Full Research Paper Draft Written
+
+#### 2.1 Source Material Analysed
+
+The `DevOps_Optimisation_Strategy.pages` file was inspected at the binary level (Apple Pages IWA protobuf format — not plain text). Extractable metadata confirmed: title *"Measuring the Carbon Footprint of CI/CD Pipelines: A Green Auditing Methodology for GitHub Actions"*; author Umer Karachiwala, Department of Computing, Atlantic Technological University, Letterkenny, Co. Donegal, Ireland (L00196895@atu.ie). The core body content aligns closely with the existing `paper/paper-draft.md` Introduction section, which was used as the primary source of voice, tone, and intellectual framing.
+
+#### 2.2 Literature References Used
+
+Citations were drawn from verifiable published works. Web search was unavailable in this session (network sandbox); citations are based on established works with high bibliographic confidence. The following references are included in the draft:
+
+| Ref | Citation | Confidence |
+|-----|----------|-----------|
+| [1] | IEA, *Data Centres and Data Transmission Networks*, 2023 | High |
+| [2] | Masanet et al., "Recalibrating Global Data Center Energy-Use Estimates," *Science* 367, 2020, doi:10.1126/science.aba3758 | High |
+| [3] | Pinto & Castor, "Energy Efficiency: A New Concern for Application Software Developers," *CACM* 60(12), 2017, doi:10.1145/3154384 | Medium-High |
+| [4] | Hilton et al., "Usage, Costs, and Benefits of CI in Open-Source Projects," *ASE 2016*, doi:10.1145/2970276.2970358 | High |
+| [5] | Green Software Foundation, *SCI Specification v1.0*, 2022 / ISO/IEC 21031:2024 | High |
+| [6] | Green Coding Solutions, *Eco-CI Energy Estimation*, GitHub, 2023 | High (tool reference) |
+| [7] | Pereira et al., "Energy Efficiency across Programming Languages," *SLE 2017*, doi:10.1145/3136014.3136031 | Very High |
+| [8] | HTTPie, *HTTPie CLI*, GitHub, 2024 | High |
+| [9] | EU Commission, CSRD Directive 2022/2464 | High |
+| [10] | GitHub Inc., *GitHub Actions Documentation*, 2024 | High |
+
+**Action required before submission:** Verify DOIs [3] and [4] against ACM Digital Library. Cross-check Eco-CI author list against Green Coding Solutions GitHub repository commits/releases page. Replace tool-only reference [6] with a peer-reviewed paper citation if one is published before submission.
+
+#### 2.3 Paper Structure Decisions
+
+The draft is structured as a standard IEEE conference paper with the following sections:
+Abstract → I. Introduction → II. Related Work → III. Measurement Methodology → IV. Experiment Design → V. Statistical Analysis → VI. Results → VII. Discussion → VIII. Conclusion → References.
+
+Key structural decisions:
+- **Background merged into Methodology (Section III)** rather than a standalone section, to stay within the 6-page limit. SCI formula and Eco-CI architecture are explained concisely inline.
+- **Five-region SCI analysis** included in Table VII using Electricity Maps annual average grid intensities (Ireland 345, Germany 350, Norway 25, USA 386, Singapore 408 gCO₂eq/kWh). Note: the `energy_analysis.ipynb` notebook currently computes only Ireland and Norway; it will need to be extended to include Germany, USA, and Singapore before results are populated.
+- **Threats to Validity** section included within Discussion (Section VII.D) rather than as a standalone section, saving approximately half a column.
+- **All numerical results** are marked `[TBD — insert after pipeline runs complete]`. Tables V, VI, VII and Figures 1–3 are structurally complete with correct column headers and row labels.
+
+#### 2.4 Files Created / Modified
+
+| File | Action |
+|------|--------|
+| `research_paper_draft.md` | Created — full IEEE-format paper draft, root of repo |
+| `RESEARCH_LOG.md` | Updated — this entry |
+
+#### 2.5 Notebook Extension Required
+
+The `analysis/energy_analysis.ipynb` currently computes SCI scores for Ireland and Norway only (Section 5, cell 11). Before populating Table VII, the notebook's `sci_rows` loop must be updated to include Germany (350), USA (386), and Singapore (408) gCO₂eq/kWh. This is a minor addition to the existing loop.
+
+#### 2.6 Next Steps
+
+- [ ] Trigger 30 × `workflow_dispatch` runs per branch (C1–C4); verify first run on each produces valid Eco-CI artifacts before committing to full protocol
+- [ ] Run `scripts/collect_results.py` with `GITHUB_TOKEN` and `GITHUB_REPO` set
+- [ ] Extend `energy_analysis.ipynb` to include 5-region SCI calculation
+- [ ] Run all notebook cells; save output figures to `results/figures/`
+- [ ] Populate `[TBD]` placeholders in `research_paper_draft.md` with actual values
+- [ ] Verify references [3] and [4] DOIs; source Eco-CI peer-reviewed citation if available
+- [ ] Final proofread for IEEE style compliance (figure captions, table numbering, citation inline format)
+
+---
+
 *Log maintained by: research author*
 *Last updated: 2026-03-29*
