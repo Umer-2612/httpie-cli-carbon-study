@@ -1,4 +1,5 @@
 name: Tests
+
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -7,6 +8,7 @@ on:
   push:
     branches:
       - master
+      - 'experiment/**'
     paths:
       - .github/workflows/tests.yml
       - httpie/**/*.py
@@ -18,50 +20,78 @@ on:
       - httpie/**/*.py
       - setup.*
       - tests/**/*.py
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (e.g., research run C2)'
+        required: false
+        default: 'Manual research run'
 
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-13, windows-latest]
         python-version:
           - '3.12'
           - '3.11'
           - '3.10'
-          - '3.9'
-          - '3.8'
-          - '3.7'
-        pyopenssl: [0, 1]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+        continue-on-error: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Eco-CI — checkout measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'checkout'
+        continue-on-error: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-<<<<<<< HEAD
-          cache: pip
 
-      - name: Install dependencies (Linux/Mac)
-        if: matrix.os != 'windows-latest'
+      - name: Install dependencies
         run: make install
 
-      - name: Install dependencies (Windows)
-=======
-      - name: Windows setup
->>>>>>> main
-        if: matrix.os == 'windows-latest'
-        run: |
-          python -m pip install --upgrade pip wheel
-          python -m pip install --upgrade '.[dev]'
-          python -m pytest --verbose ./httpie ./tests
-        env:
-          HTTPIE_TEST_WITH_PYOPENSSL: ${{ matrix.pyopenssl }}
-      - name: Linux & Mac setup
-        if: matrix.os != 'windows-latest'
-        run: |
-          make install
-          make test
-        env:
-          HTTPIE_TEST_WITH_PYOPENSSL: ${{ matrix.pyopenssl }}
+      - name: Eco-CI — dependency installation measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dependency-installation'
+        continue-on-error: true
+
+      - name: Run tests
+        run: make test
+
+      - name: Eco-CI — test execution measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'test-execution'
+        continue-on-error: true
+
+      - name: Eco-CI — display results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          json-output: true
+        continue-on-error: true
+
+      - name: Upload Eco-CI results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eco-ci-results-tests-py${{ matrix.python-version }}
+          path: /tmp/eco-ci/
+          retention-days: 30

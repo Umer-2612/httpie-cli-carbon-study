@@ -1,29 +1,45 @@
 name: Coverage
 
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 on:
+  push:
+    branches:
+      - master
+      - 'experiment/**'
+    paths:
+      - .github/workflows/coverage.yml
+      - httpie/**/*.py
+      - setup.*
+      - tests/**/*.py
   pull_request:
     paths:
       - .github/workflows/coverage.yml
       - httpie/**/*.py
       - setup.*
       - tests/**/*.py
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (e.g., research run C2)'
+        required: false
+        default: 'Manual research run'
 
 jobs:
   coverage:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
-<<<<<<< HEAD
           task: start-measurement
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 1: Checkout
-      # ----------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
@@ -32,14 +48,10 @@ jobs:
           label: 'checkout'
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 2: Python setup + dependency installation
-      # ----------------------------------------------------------
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          cache: pip
           cache: pip
 
       - name: Install dependencies
@@ -52,9 +64,6 @@ jobs:
           label: 'dependency-installation'
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 3: Coverage run
-      # ----------------------------------------------------------
       - name: Run tests with coverage
         run: make test-cover
 
@@ -65,17 +74,33 @@ jobs:
           label: 'coverage'
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 4: Coverage upload + distribution test
-      # ----------------------------------------------------------
       - name: Upload to Codecov
         run: make codecov-upload
-=======
-          python-version: "3.10"
-      - run: make install
-      - run: make test-cover
-      - run: make codecov-upload
->>>>>>> main
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_REPO_TOKEN }}
-      - run: make test-dist
+        continue-on-error: true
+
+      - name: Test distribution build
+        run: make test-dist
+
+      - name: Eco-CI — dist-test measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'dist-test'
+        continue-on-error: true
+
+      - name: Eco-CI — display results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          json-output: true
+        continue-on-error: true
+
+      - name: Upload Eco-CI results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eco-ci-results-coverage
+          path: /tmp/eco-ci/
+          retention-days: 30

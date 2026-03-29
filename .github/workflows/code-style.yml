@@ -1,6 +1,20 @@
 name: Code Style Check
 
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 on:
+  push:
+    branches:
+      - master
+      - 'experiment/**'
+    paths:
+      - .github/workflows/code-style.yml
+      - extras/*.py
+      - httpie/**/*.py
+      - setup.py
+      - tests/**/*.py
   pull_request:
     paths:
       - .github/workflows/code-style.yml
@@ -8,23 +22,26 @@ on:
       - httpie/**/*.py
       - setup.py
       - tests/**/*.py
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (e.g., research run C2)'
+        required: false
+        default: 'Manual research run'
 
 jobs:
   code-style:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Eco-CI Start Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
-<<<<<<< HEAD
           task: start-measurement
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 1: Checkout
-      # ----------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
@@ -33,14 +50,10 @@ jobs:
           label: 'checkout'
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 2: Python setup + dependency installation
-      # ----------------------------------------------------------
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          cache: pip
           cache: pip
 
       - name: Install dependencies (venv)
@@ -53,9 +66,6 @@ jobs:
           label: 'dependency-installation'
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Stage 3: Lint / code style check
-      # ----------------------------------------------------------
       - name: Run code style checks
         run: make codestyle
 
@@ -66,9 +76,6 @@ jobs:
           label: 'lint'
         continue-on-error: true
 
-      # ----------------------------------------------------------
-      # Eco-CI: display final results and upload JSON artifact
-      # ----------------------------------------------------------
       - name: Eco-CI — display results
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
@@ -83,8 +90,3 @@ jobs:
           name: eco-ci-results-code-style
           path: /tmp/eco-ci/
           retention-days: 30
-=======
-          python-version: 3.9
-      - run: make venv
-      - run: make codestyle
->>>>>>> main
