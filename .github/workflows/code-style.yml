@@ -44,6 +44,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -60,6 +61,7 @@ jobs:
         run: make venv
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -70,6 +72,7 @@ jobs:
         run: make codestyle
 
       - name: Eco-CI — lint measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -77,6 +80,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results

@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -58,6 +59,7 @@ jobs:
         run: make install
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -68,6 +70,7 @@ jobs:
         run: make test-cover
 
       - name: Eco-CI — coverage measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -84,6 +87,7 @@ jobs:
         run: make test-dist
 
       - name: Eco-CI — dist-test measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -91,6 +95,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results
