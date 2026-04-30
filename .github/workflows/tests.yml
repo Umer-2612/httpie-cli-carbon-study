@@ -61,6 +61,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+          cache-dependency-path: setup.cfg
 
       - name: Install dependencies
         run: make install
