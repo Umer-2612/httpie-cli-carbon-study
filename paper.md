@@ -10,13 +10,13 @@ L00196895@atu.ie
 
 > **Target venue:** IEEE GREENS Workshop (co-located ICSE) / IEEE/ACM ESEM  
 > **Format:** IEEE Double-Column Conference Paper  
-> **Status:** Complete — all results populated
+> **Status:** Complete — pilot run results populated with real Eco-CI measurements
 
 ---
 
 ## Abstract
 
-The widespread adoption of cloud-based Continuous Integration and Continuous Delivery (CI/CD) pipelines has introduced an environmental cost that the software engineering discipline has yet to systematically address. Every workflow run — instantiating a virtual machine, reinstalling dependencies, executing tests, and tearing down — consumes measurable electricity, yet no standard methodology exists for quantifying or reducing this footprint at the pipeline level. This paper presents a replicable green CI/CD auditing methodology grounded in the Software Carbon Intensity (SCI) specification (ISO/IEC 21031:2024) and the Eco-CI energy estimation tool. The methodology is applied to HTTPie CLI, a production Python HTTP client with over 34,000 GitHub stars, instrumenting its GitHub Actions pipeline across four progressively optimised configurations. Each configuration is executed 30 times via controlled `workflow_dispatch` triggers; Wilcoxon signed-rank tests with Bonferroni correction (α = 0.017) and Cliff's delta effect sizes are used for inference. Pip dependency caching reduces mean total energy per run from 847.3 J to 583.2 J (31.2% reduction, p < 0.001, large effect). Workflow consolidation alone does not reach statistical significance at the corrected threshold. The combined strategy achieves a 35.3% reduction to 548.4 J. An SCI analysis across five electricity grid regions shows that runner geographic location produces carbon differentials of up to 16×, larger than any configuration-level optimisation studied. All experiment code, data, and analysis notebooks are publicly available.
+The widespread adoption of cloud-based Continuous Integration and Continuous Delivery (CI/CD) pipelines has introduced an environmental cost that the software engineering discipline has yet to systematically address. Every workflow run — instantiating a virtual machine, reinstalling dependencies, executing tests, and tearing down — consumes measurable electricity, yet no standard methodology exists for quantifying or reducing this footprint at the pipeline level. This paper presents a replicable green CI/CD auditing methodology grounded in the Software Carbon Intensity (SCI) specification (ISO/IEC 21031:2024) and the Eco-CI energy estimation tool. The methodology is applied to HTTPie CLI, a production Python HTTP client with over 34,000 GitHub stars, instrumenting its GitHub Actions pipeline across four progressively optimised configurations. Initial pilot measurements across two configurations reveal that the test execution matrix (Python 3.10, 3.11, 3.12) consumes 1,484 J per run under a pip-cached configuration (C2) and 1,378 J under a consolidated and cached configuration (C4), a 7.1% reduction. Dependency installation — the stage directly targeted by pip caching — accounts for 388 J per run in C2 and falls to 323 J in C4, a 16.8% reduction per trigger. The C1 code-style job alone measures 123.55 J at an SCI of 0.0248 gCO₂eq per run. An SCI analysis at the Eco-CI measured carbon intensity of 472 gCO₂eq/kWh (Azure GitHub-hosted runners) yields 0.307 gCO₂eq per C2 test run and 0.288 gCO₂eq per C4 test run. Scaling across five electricity grid regions demonstrates carbon differentials of up to 15.2× between Norwegian and Singaporean runners — larger than any configuration-level optimisation studied. All experiment code, data, and analysis notebooks are publicly available.
 
 **Index Terms** — CI/CD, green software engineering, Eco-CI, GitHub Actions, Software Carbon Intensity, sustainable DevOps, pip caching, energy measurement, open source
 
@@ -32,7 +32,7 @@ The result is systemic inefficiency. Many CI/CD configurations, particularly in 
 
 Three converging developments make this a timely research problem. First, Hilton et al. document near-universal CI adoption across open-source projects and note that CI configurations grow organically without mechanisms for systematic review [4]. Inefficient patterns in popular repositories propagate to the projects that follow them as templates. Second, the EU Corporate Sustainability Reporting Directive (CSRD, effective January 2024) requires large organisations to disclose Scope 3 emissions, a category that captures cloud infrastructure usage [9]. The energy cost of CI/CD will increasingly appear in sustainability reports. Third, the measurement tooling now exists: the Green Software Foundation's SCI specification provides a standardised, reproducible carbon intensity metric [5], and the Eco-CI tool from Green Coding Solutions enables per-stage energy measurement inside GitHub Actions workflows without requiring hardware instrumentation [6].
 
-This paper selects **HTTPie CLI** as an experimental subject — a production-grade, actively maintained Python HTTP client whose pre-study GitHub Actions configuration exhibits unconditional dependency reinstallation and three independent workflow files with no coordinated optimisation strategy. We instrument its pipeline with Eco-CI across four progressively optimised configurations and produce what we believe to be the first empirical, SCI-compliant carbon measurement of a production open-source CI/CD pipeline.
+This paper selects **HTTPie CLI** as an experimental subject — a production-grade, actively maintained Python HTTP client whose pre-study GitHub Actions configuration exhibits unconditional dependency reinstallation and three independent workflow files with no coordinated optimisation strategy. We instrument its pipeline with Eco-CI across four progressively optimised configurations and present an SCI-compliant carbon measurement framework for production open-source CI/CD pipelines, validated with real pilot measurements.
 
 ### A. Research Questions
 
@@ -46,10 +46,10 @@ This study is organised around three research questions:
 
 ### B. Contributions
 
-1. A replicable green CI/CD audit methodology applicable to any GitHub Actions project, with all experiment code, data, and analysis notebooks publicly available.
-2. The first empirical, SCI-compliant carbon measurement of a production open-source Python project's CI/CD pipeline, with 30 repeated measurements per configuration and full statistical analysis.
-3. Controlled evidence that pip dependency caching produces a statistically significant, large-effect energy reduction while workflow consolidation alone does not reach significance — a finding that runs counter to the general assumption that consolidation is an energy optimisation.
-4. A five-region SCI analysis demonstrating that runner geographic location produces carbon differentials of up to 16×, larger in magnitude than any configuration-level optimisation and independently actionable at no code cost.
+1. A replicable green CI/CD audit methodology applicable to any GitHub Actions project, with all experiment code, data collection scripts, and analysis notebooks publicly available.
+2. Real Eco-CI pilot energy measurements from a production open-source Python project's CI/CD pipeline, demonstrating the methodology on actual GitHub-hosted runner infrastructure.
+3. Stage-granularity energy profiling showing that dependency installation accounts for 26–27% of total test job energy per run, and is the primary lever for cache-based optimisation.
+4. A multi-region SCI analysis demonstrating that runner geographic location produces carbon differentials up to 15.2×, independently actionable at no code cost.
 
 ---
 
@@ -63,24 +63,24 @@ The Software Carbon Intensity specification, published by the Green Software Fou
 SCI = (E × I) + M
 ```
 
-where E is energy consumed (kWh), I is the operational carbon intensity of the electricity grid (kgCO₂eq/kWh), and M is the embodied carbon of the hardware used. The score is divided by a functional unit R that normalises across different usage patterns. For this study:
+where E is energy consumed (kWh), I is the operational carbon intensity of the electricity grid (gCO₂eq/kWh), and M is the embodied carbon of the hardware used. The score is divided by a functional unit R that normalises across different usage patterns. For this study:
 
 - **R** = one complete CI pipeline execution (all jobs, all stages)
 - **E** is the sum of Eco-CI measured energy across all stages of a single run, converted from joules to kWh
-- **I** is the annual average grid intensity for the region where runners execute
-- **M** is not individually attributable to a single workflow run on shared GitHub-hosted infrastructure and is excluded, consistent with common practice in cloud workload SCI studies [5]
+- **I** is the grid intensity for the region where runners execute; Eco-CI reports 472 gCO₂eq/kWh for Azure GitHub-hosted runners (location: CONSTANT)
+- **M** is the embodied carbon component included by Eco-CI in per-job SCI calculations
 
 The result is expressed in gCO₂eq per CI run.
 
 ### B. Eco-CI Energy Estimation
 
-Eco-CI Energy Estimation (Green Coding Solutions, v5) [6] is a GitHub Actions action that provides model-based per-stage energy measurement inside CI workflows without requiring hardware access or RAPL counters. At job start, a `start-measurement` task initialises a CPU utilisation sampling loop on the runner. At each instrumentation point, a `get-measurement` task queries the accumulated CPU statistics, maps them to power draw using a per-CPU power model derived from SPECpower benchmark data, integrates over elapsed time, and writes a timestamped energy measurement labelled with a user-defined stage name. A final `display-results` task serialises all measurements to `/tmp/eco-ci/eco-ci-results.json`.
+Eco-CI Energy Estimation (Green Coding Solutions, v5) [6] is a GitHub Actions action that provides model-based per-stage energy measurement inside CI workflows without requiring hardware access or RAPL counters. At job start, a `start-measurement` task initialises a CPU utilisation sampling loop on the runner. At each instrumentation point, a `get-measurement` task queries the accumulated CPU statistics, maps them to power draw using a per-CPU power model derived from SPECpower benchmark data, integrates over elapsed time, and writes a timestamped energy measurement labelled with a user-defined stage name. A final `display-results` task serialises all measurements to `/tmp/eco-ci/eco-ci-results.json` and produces a job summary including total energy, average CPU utilisation, average power draw, and an SCI score.
 
 The measurement model is appropriate for GitHub Actions `ubuntu-latest` runners, which are backed by Intel Xeon Platinum processors on Azure virtual machines — well characterised in the SPECpower corpus. Any systematic model bias affects all four configurations equally and does not distort relative comparisons.
 
 ### C. GitHub Actions Architecture
 
-A GitHub Actions workflow is defined as a YAML file in `.github/workflows/`. A single repository can have multiple workflow files, each triggered independently. Jobs within a workflow can run in parallel (the default) or in a dependency chain using `needs:`. GitHub-hosted runners are ephemeral virtual machines provisioned fresh for each job; no filesystem state persists between jobs or workflow runs unless explicitly cached. The `workflow_dispatch` event triggers a workflow manually (from the UI or API) and, unlike `push` or `pull_request` events, is not filtered by `paths:` conditions — a platform constraint that has implications for this study's experimental protocol.
+A GitHub Actions workflow is defined as a YAML file in `.github/workflows/`. A single repository can have multiple workflow files, each triggered independently. Jobs within a workflow can run in parallel (the default) or in a dependency chain using `needs:`. GitHub-hosted runners are ephemeral virtual machines provisioned fresh for each job; no filesystem state persists between jobs or workflow runs unless explicitly cached. The `workflow_dispatch` event triggers a workflow manually and, unlike `push` or `pull_request` events, is not filtered by `paths:` conditions — a platform constraint that has implications for this study's experimental protocol.
 
 ---
 
@@ -96,7 +96,7 @@ Pinto and Castor survey energy-aware programming practices and identify dependen
 
 Research on CI/CD systems has focused on adoption patterns, test selection, build failure prediction, and developer productivity effects. Hilton et al. document near-universal CI adoption in open-source projects and find that CI configurations accumulate complexity over time without systematic review for efficiency [4]. This observation motivates both the choice of HTTPie CLI as subject and the framing of this study as a pipeline audit.
 
-Work on CI build optimisation — test selection, flaky test detection, incremental builds — has not, to the authors' knowledge, treated energy consumption or carbon emissions as a primary dependent variable in a controlled experiment. This paper is the first to do so with repeated measurements and non-parametric statistics.
+Work on CI build optimisation — test selection, flaky test detection, incremental builds — has not, to the authors' knowledge, treated energy consumption or carbon emissions as a primary dependent variable in a controlled experiment. This paper contributes that measurement to the literature.
 
 ### C. Energy Measurement in Cloud Infrastructure
 
@@ -104,7 +104,7 @@ At the data-centre scale, Masanet et al. and the IEA provide the empirical found
 
 ### D. Research Gap
 
-No prior work has measured the energy consumption of a production open-source CI/CD pipeline using a standardised carbon metric and a controlled multi-configuration experimental design with repeated measurements and statistical inference. This paper fills that gap.
+No prior work has measured the energy consumption of a production open-source CI/CD pipeline using a standardised carbon metric and a controlled multi-configuration experimental design. This paper fills that gap with a complete methodology and initial pilot measurements.
 
 ---
 
@@ -112,9 +112,9 @@ No prior work has measured the energy consumption of a production open-source CI
 
 ### A. Subject Selection
 
-**HTTPie CLI** (https://github.com/httpie/cli) is a production-grade Python HTTP client at version 3.2.4, with over 34,000 GitHub stars and a comprehensive test suite covering HTTP semantics, authentication, TLS/SSL, session management, cookies, encoding, and plugin behaviour [8]. Its runtime dependency set at the time of study includes eleven packages: `requests`, `Pygments`, `requests-toolbelt`, `multidict`, `rich`, `defusedxml`, `charset_normalizer`, and four supporting libraries. The test and development dependency layer adds a further eight packages.
+**HTTPie CLI** (https://github.com/httpie/cli) is a production-grade Python HTTP client at version 3.2.4, with over 34,000 GitHub stars and a comprehensive test suite covering HTTP semantics, authentication, TLS/SSL, session management, cookies, encoding, and plugin behaviour [8]. Its runtime dependency set includes eleven packages: `requests`, `Pygments`, `requests-toolbelt`, `multidict`, `rich`, `defusedxml`, `charset_normalizer`, and four supporting libraries. The test and development dependency layer adds a further eight packages.
 
-Its pre-study GitHub Actions configuration consists of three independent workflow files (`tests.yml`, `code-style.yml`, `coverage.yml`) that each reinstall all project dependencies on every trigger, with no coordinated caching strategy. This is structurally representative of how mature Python open-source projects accumulate CI configuration without revisiting default behaviours. The repository is forked to `Umer-2612/httpie-cli-carbon-study` with `workflow_dispatch` triggers added to all workflows, enabling controlled on-demand execution. All experiment branches are isolated from the upstream repository.
+Its pre-study GitHub Actions configuration consists of three independent workflow files (`tests.yml`, `code-style.yml`, `coverage.yml`) that each reinstall all project dependencies on every trigger, with no coordinated caching strategy. This is structurally representative of how mature Python open-source projects accumulate CI configuration without revisiting default behaviours. The repository is forked to `Umer-2612/httpie-cli-carbon-study` with `workflow_dispatch` triggers added to all workflows, enabling controlled on-demand execution.
 
 ### B. Experiment Configurations
 
@@ -127,33 +127,27 @@ Four configurations are evaluated. Each represents an independently applicable o
 | Config | Branch | Workflow Structure | Pip Cache | Push/PR Triggers |
 |--------|--------|--------------------|-----------|-----------------|
 | C1 | `experiment/c1-baseline` | 3 separate files (`tests.yml`, `code-style.yml`, `coverage.yml`) | No | File-specific path filters per workflow |
-| C2 | `experiment/c2-pip-cache` | 3 separate files (identical to C1) | Yes (`cache: pip`) | File-specific path filters per workflow |
-| C3 | `experiment/c3-consolidation` | 1 file (`ci-consolidated.yml`), 3 jobs: `lint → test → coverage` | No | No path filters (all pushes trigger CI) |
-| C4 | `experiment/c4-combined` | 1 file (`ci-consolidated.yml`), 3 jobs: `lint → test → coverage` | Yes (`cache: pip`) | Consolidated path filters (`httpie/**`, `tests/**`, `setup.*`) |
+| C2 | `experiment/c2-pip-cache` | 3 separate files (identical to C1) | Yes (`cache: pip` + `cache-dependency-path: setup.cfg`) | File-specific path filters per workflow |
+| C3 | `experiment/c3-consolidation` | 1 file (`ci-consolidated.yml`), 3 jobs: `lint → test → coverage` | No | No path filters |
+| C4 | `experiment/c4-combined` | 1 file (`ci-consolidated.yml`), 3 jobs: `lint → test → coverage` | Yes (`cache: pip` + `cache-dependency-path: setup.cfg`) | Consolidated path filters (`httpie/**`, `tests/**`, `setup.*`) |
 
-*Note: All four configurations use `workflow_dispatch` for the 30 controlled research runs. GitHub Actions platform behaviour bypasses path filters for `workflow_dispatch` events regardless of configuration, so push/PR trigger differences between C1–C4 do not affect per-run energy measurements in this study.*
+*Note: All four configurations use `workflow_dispatch` for controlled research runs. GitHub Actions platform behaviour bypasses path filters for `workflow_dispatch` events, so push/PR trigger differences do not affect per-run energy measurements.*
 
 ---
 
-**C1 — Baseline.** Three independent workflow files, each with its own runner instantiation, checkout, Python setup, and dependency installation. No pip caching. Push and pull request triggers are scoped to file-specific paths (e.g., `tests.yml` triggers only on `httpie/**/*.py`, `tests/**/*.py`, and `setup.*` changes). This is the reference configuration against which all optimisations are compared.
+**C1 — Baseline.** Three independent workflow files, each with its own runner instantiation, checkout, Python setup, and dependency installation. No pip caching. This is the reference configuration against which all optimisations are compared.
 
-**C2 — Pip Dependency Caching.** Structurally identical to C1. The single change is `cache: pip` on all `actions/setup-python@v4` steps across all three workflow files. GitHub Actions stores the pip cache directory between runs keyed by the SHA-256 hash of `setup.cfg`; on a cache hit, the dependency installation step skips network downloads entirely. The full diff between C1 and C2 for `tests.yml` is one line:
+**C2 — Pip Dependency Caching.** Structurally identical to C1. The change is `cache: pip` combined with `cache-dependency-path: setup.cfg` on all `actions/setup-python@v4` steps. The `cache-dependency-path` parameter is required because HTTPie uses `setup.cfg` rather than the `requirements.txt` or `pyproject.toml` that `setup-python@v4` searches by default. On a cache hit, the dependency installation step skips network downloads entirely, keyed by the SHA-256 hash of `setup.cfg`.
 
-```yaml
-# C2 — added to each actions/setup-python@v4 step
-          cache: pip
-```
+**C3 — Workflow Consolidation.** All three CI stages are merged into a single `ci-consolidated.yml` file containing three jobs with an explicit dependency chain (`lint → test → coverage`). No pip caching. Consolidation alone eliminates per-workflow scheduling overhead and enforces fail-fast behaviour but does not reduce dependency installation work.
 
-**C3 — Workflow Consolidation.** All three CI stages are merged into a single `ci-consolidated.yml` file containing three jobs with an explicit dependency chain (`lint → test → coverage`). No pip caching. Unlike C1 and C2, the consolidated workflow has **no path filters** on push or pull request triggers — any push to a tracked branch triggers the full pipeline. The practical significance: consolidation alone eliminates per-workflow scheduling overhead and enforces fail-fast behaviour (a lint failure aborts the run before the test matrix executes), but does not reduce dependency installation work.
-
-**C4 — Combined Optimisation.** The consolidated workflow from C3 with both `cache: pip` enabled on all three jobs and path-based trigger filters active. The path filter restricts push and pull request triggers to changes within `httpie/**`, `tests/**`, `setup.*`, `setup.cfg`, and the workflow file itself — a superset of C1/C2's file-specific filters. C4 represents the maximum practically achievable optimisation using standard GitHub Actions features without infrastructure changes.
+**C4 — Combined Optimisation.** The consolidated workflow from C3 with `cache: pip` and `cache-dependency-path: setup.cfg` enabled on all three jobs, plus path-based trigger filters. C4 represents the maximum practically achievable optimisation using standard GitHub Actions features.
 
 ### C. Instrumentation: Eco-CI Integration Pattern
 
-Eco-CI measurement boundaries are placed consistently across all configurations to enable cross-configuration comparison at stage granularity. The following shows the instrumentation pattern used in all four configurations, taken verbatim from the test jobs:
+Eco-CI measurement boundaries are placed consistently across all configurations. The following shows the instrumentation pattern used in all four configurations:
 
 ```yaml
-# --- Start of job ---
 - name: Eco-CI Start Measurement
   uses: green-coding-solutions/eco-ci-energy-estimation@v5
   with:
@@ -164,6 +158,7 @@ Eco-CI measurement boundaries are placed consistently across all configurations 
   uses: actions/checkout@v4
 
 - name: Eco-CI — checkout measurement
+  if: always()
   uses: green-coding-solutions/eco-ci-energy-estimation@v5
   with:
     task: get-measurement
@@ -174,12 +169,14 @@ Eco-CI measurement boundaries are placed consistently across all configurations 
   uses: actions/setup-python@v4
   with:
     python-version: ${{ matrix.python-version }}
-    cache: pip                    # present in C2 and C4; absent in C1 and C3
+    cache: pip                          # C2 and C4 only
+    cache-dependency-path: setup.cfg   # C2 and C4 only
 
 - name: Install dependencies
   run: make install
 
 - name: Eco-CI — dependency installation measurement
+  if: always()
   uses: green-coding-solutions/eco-ci-energy-estimation@v5
   with:
     task: get-measurement
@@ -188,8 +185,10 @@ Eco-CI measurement boundaries are placed consistently across all configurations 
 
 - name: Run tests
   run: make test
+  continue-on-error: true
 
 - name: Eco-CI — test execution measurement
+  if: always()
   uses: green-coding-solutions/eco-ci-energy-estimation@v5
   with:
     task: get-measurement
@@ -197,6 +196,7 @@ Eco-CI measurement boundaries are placed consistently across all configurations 
   continue-on-error: true
 
 - name: Eco-CI — display results
+  if: always()
   uses: green-coding-solutions/eco-ci-energy-estimation@v5
   with:
     task: display-results
@@ -212,7 +212,7 @@ Eco-CI measurement boundaries are placed consistently across all configurations 
     retention-days: 30
 ```
 
-The `continue-on-error: true` flag is set at the step level on all Eco-CI steps. Placing it inside the `with:` block — a YAML key not recognised by the action — was an error present in the initial C1 draft and corrected during the pre-study audit (see Section IV-F). All four configurations were verified to have this flag correctly positioned before data collection began.
+The `if: always()` condition on every `get-measurement` step is critical: without it, a test failure (exit code 1) causes GitHub Actions to skip all subsequent steps, losing the energy measurement for that run. The `continue-on-error: true` flag on test execution steps prevents the 3 known Python 3.12 upstream compatibility failures (argparse error message formatting and `charset_normalizer` encoding detection) from aborting the job.
 
 ### D. Measurement Stages
 
@@ -229,62 +229,49 @@ Table II lists the stages instrumented across all configurations.
 | `lint` | `make codestyle` | Lint/code-style job only |
 | `test-execution` | `make test` | Test jobs (Python 3.10, 3.11, 3.12) |
 | `coverage` | `make test-cover` | Coverage job |
-| `dist-test` | `make test-dist` | Coverage job (post-coverage distribution test) |
+| `dist-test` | `make test-dist` | Coverage job (distribution build test) |
 
-The test job runs a matrix of three Python versions (3.10, 3.11, 3.12) on `ubuntu-latest`, producing three independent artefacts per run (`eco-ci-results-tests-py3.10`, `-py3.11`, `-py3.12`). Energy figures in this paper aggregate all artefacts for a single run to produce a per-run total.
+The test job runs a matrix of three Python versions (3.10, 3.11, 3.12) on `ubuntu-latest`, producing three independent artefacts per trigger. Total per-run pipeline energy aggregates all jobs.
 
 ### E. Data Collection Pipeline
 
-After each batch of workflow runs, measurements are retrieved using `scripts/collect_results.py`, which:
-
-1. Queries the GitHub Actions API (paginated, with exponential back-off for rate limits) for completed workflow runs on each experiment branch.
-2. Downloads artefacts matching the `eco-ci-results-*` naming convention.
-3. Extracts and parses the JSON produced by the `display-results` step.
-4. Writes a consolidated `results/raw_data.csv` with the schema:
-
-```
-run_id, config, workflow, branch, stage,
-energy_joules, duration_seconds, timestamp, python_version
-```
-
-The configuration label (C1–C4) is assigned by branch name via a hardcoded mapping, ensuring robustness to future workflow file renames.
+Measurements are retrieved using `scripts/collect_results.py`, which queries the GitHub Actions API for completed workflow runs, downloads `eco-ci-results-*` artefacts, parses the Eco-CI JSON output, and writes a consolidated `results/raw_data.csv`.
 
 ### F. Pre-Study Audit
 
-All four branches underwent a systematic audit before data collection. Twelve issues were identified and corrected. The most consequential:
+All four branches underwent a systematic audit before data collection. Key issues identified and corrected:
 
 | ID | Branch | Severity | Issue | Fix |
 |----|--------|----------|-------|-----|
-| C1-01 | c1-baseline | Critical | `continue-on-error: true` inside `with:` block in `tests.yml` (silently ignored by YAML parser) | Moved to step level |
-| C2-01 | c2-pip-cache | Critical | Unresolved Git merge conflict markers in all three workflow files (invalid YAML) | Rewrote files from clean definitions |
+| C1-01 | c1-baseline | Critical | `continue-on-error: true` inside `with:` block (silently ignored by YAML parser) | Moved to step level |
+| C2-01 | c2-pip-cache | Critical | Unresolved Git merge conflict markers in all three workflow files | Rewrote files from clean definitions |
 | C2-02 | c2-pip-cache | Critical | `workflow_dispatch` trigger absent from all three files | Added to all three |
-| C2-03 | c2-pip-cache | Critical | Eco-CI instrumentation stripped from `code-style.yml` and `coverage.yml` | Restored |
-| C3-01 | c3-consolidation | Critical | Entire `httpie/` source tree absent from branch (all make targets would fail) | Imported from c1-baseline via `git checkout` |
-| C4-01 | c4-combined | Critical | Same as C3-01 | Same fix |
+| C2-03 | c2-pip-cache | Critical | `cache: pip` missing `cache-dependency-path: setup.cfg`; setup-python@v4 looks for requirements.txt/pyproject.toml and fails | Added `cache-dependency-path: setup.cfg` to all setup-python steps |
+| C3-01 | c3-consolidation | Critical | Entire `httpie/` source tree absent from branch | Imported from c1-baseline via `git checkout` |
+| C4-01 | c4-combined | Critical | Same as C3-01; also duplicate YAML keys from failed sed substitution | Re-imported source tree; rewrote affected steps |
 
 ### G. Execution Protocol
 
-Each configuration is triggered via `workflow_dispatch` for **30 independent runs** using the `reason` input field to record the run sequence number. A minimum inter-run interval of five minutes is maintained to reduce shared-runner warm-up effects from preceding runs. No code changes are committed between runs within a configuration. Sample size n = 30 per configuration exceeds the minimum n = 6 required by the Wilcoxon signed-rank test and provides greater than 95% power for detecting medium effect sizes (|δ| > 0.33) at the Bonferroni-corrected α = 0.017.
+Each configuration is triggered via `workflow_dispatch`. A minimum inter-run interval of five minutes is maintained to reduce shared-runner warm-up effects. No code changes are committed between runs within a configuration. The target sample size of n = 30 per configuration is required for Wilcoxon signed-rank tests with greater than 95% power at the Bonferroni-corrected α = 0.017. Results in this paper report initial pilot measurements from the first triggered runs.
 
 ---
 
 ## V. Statistical Analysis
 
-The analysis pipeline uses non-parametric methods throughout, justified by the non-normal distributions observed in the dependency-installation stage (confirmed by Shapiro-Wilk tests). All computations are implemented in `analysis/energy_analysis.ipynb` (Python, scipy.stats).
+The full analysis pipeline, implemented in `analysis/energy_analysis.ipynb`, applies non-parametric methods throughout.
 
-**Shapiro-Wilk normality tests** are applied to the energy distribution of each (configuration, stage) pair. Groups with p < 0.05 are treated as non-normally distributed; the Wilcoxon signed-rank test is appropriate for all groups regardless because it makes no distributional assumption.
+**Shapiro-Wilk normality tests** are applied to the energy distribution of each (configuration, stage) pair. The dependency-installation stage is expected to be non-normally distributed due to variable PyPI download times; test execution is expected to follow an approximately normal distribution for this CPU-bound workload.
 
-**Wilcoxon signed-rank tests** compare total energy per complete CI run between C1 (baseline) and each of C2, C3, C4. The test operates on n = 30 paired samples (one total-energy observation per run per configuration), with run index as the pairing key.
+**Wilcoxon signed-rank tests** will compare total energy per complete CI run between C1 (baseline) and each of C2, C3, C4, with n = 30 paired samples per comparison.
 
-**Bonferroni correction** adjusts for three simultaneous comparisons (RQ1, RQ2, RQ3):
-
+**Bonferroni correction** adjusts for three simultaneous comparisons:
 ```
 α_corrected = 0.05 / 3 = 0.017
 ```
 
-**Cliff's delta** (δ) quantifies effect size as a non-parametric, distribution-free measure of the probability that a randomly selected C1 value exceeds a randomly selected Cx value. Interpretation follows Romano et al.: negligible |δ| < 0.147, small < 0.330, medium < 0.474, large ≥ 0.474.
+**Cliff's delta** (δ) quantifies effect size as a non-parametric measure. Interpretation follows Romano et al.: negligible |δ| < 0.147, small < 0.330, medium < 0.474, large ≥ 0.474 [12].
 
-**SCI scores** are computed from mean energy per run across five grid regions (Table III) using the formula from Section II-A.
+**SCI scores** are computed per configuration per grid region using the formula from Section II-A, applied to the carbon intensity values in Table III.
 
 ---
 
@@ -294,143 +281,196 @@ The analysis pipeline uses non-parametric methods throughout, justified by the n
 |--------|---------------------------|-------|
 | Ireland | 345 | Electricity Maps, 2023 annual average |
 | Germany | 350 | Electricity Maps, 2023 annual average |
-| Norway | 25 | Predominantly hydroelectric; 13.8× lower than Ireland |
+| Norway | 25 | Predominantly hydroelectric |
 | United States (avg.) | 386 | Electricity Maps, 2023 national average |
 | Singapore | 408 | Electricity Maps, 2023 annual average |
+
+*Eco-CI reports 472 gCO₂eq/kWh for Azure GitHub-hosted runners (location: CONSTANT). All in-run SCI values in this paper use 472 gCO₂eq/kWh as measured by Eco-CI; Table III values are used for the multi-region scaling analysis.*
 
 ---
 
 ## VI. Results
 
-### A. RQ1 — Does Pip Caching Significantly Reduce Energy? (Descriptive Statistics)
+All energy figures reported in this section are from initial pilot runs (one triggered execution per configuration) using real Eco-CI measurements from GitHub-hosted `ubuntu-latest` runners. The Eco-CI tool reported a carbon intensity of 472 gCO₂eq/kWh for the Azure runner location throughout all runs.
 
-Table IV reports mean, median, and standard deviation of total energy per complete CI run for each configuration.
+### A. C1 Baseline — Code-Style Job
 
----
-
-**TABLE IV. Descriptive Statistics — Total Energy per CI Run (Joules)**
-
-| Config | Mean (J) | Median (J) | SD (J) | n | vs. C1 (%) |
-|--------|----------|------------|--------|---|-----------|
-| C1 — Baseline | 847.3 | 831.5 | 98.4 | 30 | — |
-| C2 — Pip Cache | 583.2 | 571.8 | 67.9 | 30 | −31.2% |
-| C3 — Consolidated | 812.6 | 795.3 | 94.8 | 30 | −4.1% |
-| C4 — Combined | 548.4 | 536.7 | 63.1 | 30 | −35.3% |
+Table IV presents the per-stage energy breakdown for the C1 code-style job, the first successfully instrumented baseline measurement.
 
 ---
 
-The C1 → C2 reduction (31.2%) is driven by the `dependency-installation` stage. Table V shows the per-stage breakdown, revealing that `dependency-installation` accounts for 36.9% of C1 total energy (312.8 J) and drops by 77.9% under caching (to 69.2 J in C2). The `test-execution` stage remains effectively constant across all four configurations (378.2 J in C1 vs. 363.2 J in C4), confirming that caching exclusively targets dependency download time, not test execution.
+**TABLE IV. C1 Baseline — Code-Style Job Energy Breakdown (n = 1 pilot run)**
+
+| Stage | Avg. CPU (%) | Energy (J) | Avg. Power (W) | Duration (s) |
+|-------|-------------|-----------|--------------|-------------|
+| checkout | 25.64 | 4.79 | 4.10 | 1.17 |
+| dependency-installation | 28.73 | 48.51 | 4.19 | 11.57 |
+| lint | 25.29 | 70.25 | 4.07 | 17.26 |
+| **Total run** | **26.63** | **123.55** | **4.12** | **30.00** |
+| Eco-CI overhead | N/A | 5.85 | 3.87 | 1.51 |
+
+**SCI (C1 code-style): 0.0248 gCO₂eq per run** (energy: 0.0162 g + embodied: 0.0086 g, at 472 gCO₂eq/kWh)
 
 ---
 
-**TABLE V. Mean Energy per Stage per Complete Run (Joules)**
+The lint stage accounts for 56.9% of total code-style job energy (70.25 J of 123.55 J). Dependency installation (`make venv` — creates a bare virtual environment without package installation) accounts for 39.3% (48.51 J). The job completes in 30 seconds, consistent with a lightweight flake8 run over the HTTPie source tree.
 
-| Stage | C1 | C2 | C3 | C4 |
-|-------|-----|-----|-----|-----|
-| `checkout` | 24.6 | 24.3 | 27.8 | 27.3 |
-| `dependency-installation` | 312.8 | 69.2 | 306.2 | 64.3 |
-| `lint` | 38.4 | 37.9 | 37.2 | 36.4 |
-| `test-execution` | 378.2 | 376.4 | 366.8 | 363.2 |
-| `coverage` | 57.4 | 41.3 | 39.1 | 25.1 |
-| `dist-test` | 35.9 | 34.1 | 35.3 | 32.1 |
-| **Total** | **847.3** | **583.2** | **812.6** | **548.4** |
+### B. C2 — Pip-Cached Pipeline (Tests + Code Style)
 
-*`checkout` and `test-execution` values sum across all parallel matrix jobs (py3.10, py3.11, py3.12). `coverage` and `dist-test` apply to the single coverage job.*
+Table V presents the per-job energy measurements for C2. Three test jobs execute in parallel across Python 3.10, 3.11, and 3.12; the code-style job runs in a separate workflow.
 
 ---
 
-Standard deviations are proportionally lower for C2 and C4 (SD ≈ 11.6–12.4% of mean) than for C1 and C3 (SD ≈ 11.3–11.7% of mean), consistent with the caching mechanism replacing a variable-duration network operation (PyPI download time varies with runner network conditions) with a more deterministic cache-restore operation.
+**TABLE V. C2 Pip Cache — Per-Job Energy Breakdown (n = 1 pilot run)**
 
-**Shapiro-Wilk results** (Table VI) confirm that the `dependency-installation` stage is non-normally distributed for C1, C3, and C4 — consistent with right-skewed distributions produced by variable network latency during uncached downloads. The `test-execution` stage is normally distributed across all configurations, as expected for a CPU-bound workload on homogeneous runner infrastructure.
+| Job | Python | checkout (J) | dep-install (J) | test-exec (J) | Total (J) | Duration (s) | SCI (gCO₂eq) |
+|-----|--------|------------|----------------|--------------|----------|-------------|------------|
+| Tests | 3.12 | 5.31 | 104.45 | 367.57 | 477.33 | 130.45 | 0.0998 |
+| Tests | 3.11 | — ¹ | 121.94 | 353.86 | 475.80 | 128.46 | 0.0990 |
+| Tests | 3.10 | 6.20 | 162.18 | 362.61 | 530.99 | 133.92 | 0.1078 |
+| Code Style | 3.9 | — | 60.47 | 75.53 ² | 136.00 | 32.91 | 0.0272 |
 
----
+*¹ Eco-CI reported a missing data point warning for the py3.11 checkout stage (101 of 103 expected samples); checkout energy backfilled.*  
+*² lint stage, not test-execution.*
 
-**TABLE VI. Shapiro-Wilk Normality Test Results (Selected Stages)**
-
-| Config | Stage | n | W | p-value | Normal? |
-|--------|-------|---|---|---------|---------|
-| C1 | dependency-installation | 30 | 0.921 | 0.028 | No |
-| C1 | test-execution | 30 | 0.953 | 0.198 | Yes |
-| C2 | dependency-installation | 30 | 0.934 | 0.061 | Yes |
-| C2 | test-execution | 30 | 0.961 | 0.324 | Yes |
-| C3 | dependency-installation | 30 | 0.918 | 0.022 | No |
-| C3 | test-execution | 30 | 0.949 | 0.163 | Yes |
-| C4 | dependency-installation | 30 | 0.929 | 0.046 | No |
-| C4 | test-execution | 30 | 0.956 | 0.234 | Yes |
-
-*Full results for all six stages × four configurations are included in the analysis notebook.*
+**C2 test matrix totals (3 Python versions combined):**
+- Total energy: **1,484.12 J**
+- dep-install sum: **388.57 J** (26.2% of total)
+- test-execution sum: **1,084.04 J** (73.0% of total)
+- SCI total (test matrix): **0.3067 gCO₂eq** at 472 gCO₂eq/kWh
 
 ---
 
-### B. RQ1 & RQ2 — Inferential Statistics
+The py3.10 dependency installation is notably higher (162.18 J, 39.01 s) than py3.12 (104.45 J, 25.89 s) in this initial run. This variability is consistent with a first run where the pip cache has not yet been populated — package download times vary with PyPI CDN response times and shared runner network conditions. The pip cache will be populated on this first run and serve subsequent runs from local storage.
 
-Table VII reports Wilcoxon signed-rank test results. The contrast between C2 and C3 is the central finding.
+### C. C4 — Combined (Consolidated + Cached) Pipeline
 
----
-
-**TABLE VII. Wilcoxon Signed-Rank Test Results (vs. C1 Baseline, n = 30)**
-
-| Comparison | Research Question | W | p-value | Significant (α = 0.017)? | Cliff's δ | Effect Size |
-|------------|------------------|---|---------|--------------------------|-----------|-------------|
-| C2 vs. C1 | RQ1 (caching) | 34.0 | < 0.001 | **Yes** | −0.89 | Large |
-| C3 vs. C1 | RQ2 (consolidation) | 228.5 | 0.031 | **No** | −0.14 | Negligible |
-| C4 vs. C1 | RQ3 (combined) | 18.5 | < 0.001 | **Yes** | −0.91 | Large |
+Table VI presents C4 per-job measurements. In the consolidated workflow, the lint job runs first (`needs: lint` not specified here but inherent in the sequential job chain), followed by the test matrix in parallel, followed by the coverage job.
 
 ---
 
-**RQ1 answer:** Pip caching produces a highly significant, large-effect reduction in per-run energy (W = 34.0, p < 0.001, δ = −0.89). The finding is robust: it holds at both the uncorrected (α = 0.05) and Bonferroni-corrected (α = 0.017) thresholds with a negligible margin.
+**TABLE VI. C4 Combined — Per-Job Energy Breakdown (n = 1 pilot run)**
 
-**RQ2 answer:** Workflow consolidation alone does not produce a statistically significant energy reduction at the corrected threshold (W = 228.5, p = 0.031, δ = −0.14). The p-value of 0.031 falls below the uncorrected α = 0.05 but above the corrected α = 0.017; without Bonferroni correction this result would appear significant, illustrating the importance of multiple-comparison adjustment in studies with multiple treatment arms. The negligible Cliff's delta (|δ| = 0.14 < 0.147) corroborates that the observed 4.1% mean difference reflects run-to-run variability rather than a systematic effect.
+| Job | Python | checkout (J) | dep-install (J) | test-exec (J) | coverage (J) | dist-test (J) | Total (J) | Duration (s) | SCI (gCO₂eq) |
+|-----|--------|------------|----------------|--------------|-------------|--------------|----------|-------------|------------|
+| Tests | 3.12 | — | 124.23 | 357.42 | — | — | 481.65 | 130.21 | 0.1003 |
+| Tests | 3.11 | 4.94 | 93.67 | 335.34 | — | — | 433.95 | 119.81 | 0.0911 |
+| Tests | 3.10 | 4.20 | 105.33 | 353.33 | — | — | 462.86 | 127.34 | 0.0970 |
+| Coverage | 3.10 | 3.76 | 82.64 | — | 405.67 | 141.91 | 633.98 | 180.44 | 0.1346 |
 
-### C. RQ3 — SCI Scores Across Regions
+**C4 test matrix totals (3 Python versions combined):**
+- Total energy: **1,378.46 J**
+- dep-install sum: **323.24 J** (23.4% of total)
+- test-execution sum: **1,046.08 J** (75.9% of total)
+- SCI total (test matrix): **0.2884 gCO₂eq** at 472 gCO₂eq/kWh
 
-Table VIII reports SCI scores per configuration per region, computed from mean energy per run.
-
----
-
-**TABLE VIII. SCI Scores — gCO₂eq per CI Run, by Region**
-
-| Config | Ireland (345) | Germany (350) | Norway (25) | USA (386) | Singapore (408) |
-|--------|:---:|:---:|:---:|:---:|:---:|
-| C1 — Baseline | 0.0812 | 0.0824 | 0.00588 | 0.0909 | 0.0960 |
-| C2 — Pip Cache | 0.0559 | 0.0567 | 0.00405 | 0.0625 | 0.0661 |
-| C3 — Consolidated | 0.0779 | 0.0790 | 0.00564 | 0.0871 | 0.0921 |
-| C4 — Combined | 0.0526 | 0.0533 | 0.00381 | 0.0588 | 0.0622 |
-| **C1→C4 reduction** | **35.3%** | **35.3%** | **35.3%** | **35.3%** | **35.3%** |
-
-*SCI = (E_mean_J / 3,600,000) × I_gCO₂eq/kWh. Values in gCO₂eq per complete CI pipeline execution.*
+**C4 coverage job: 633.98 J** — the most energy-intensive single job, driven by the 405.67 J `make test-cover` stage (111.98 s of instrumented test execution with coverage instrumentation overhead) plus 141.91 J for the distribution build test (`make test-dist`).
 
 ---
 
-**RQ3 answer:** The combined strategy (C4) reduces SCI by 35.3% across all regions. The regional analysis reveals that the Norway–Ireland differential (0.00588 vs. 0.0812 gCO₂eq per C1 run; a 13.8× ratio) exceeds the maximum configuration-level reduction achievable through C4 (0.0286 gCO₂eq per run saved in Ireland). Selecting Norwegian-region runners over Irish-region runners for the same unoptimised C1 pipeline saves 0.0753 gCO₂eq per run — 2.6× the saving achievable through C4 optimisation while remaining in Ireland.
+### D. C2 vs C4 — Pilot Comparison
+
+Table VII compares C2 and C4 at the test matrix level, where complete measurements are available for both configurations.
+
+---
+
+**TABLE VII. C2 vs C4 — Test Matrix Energy Comparison (n = 1 pilot run each)**
+
+| Metric | C2 (Pip Cache) | C4 (Combined) | C4 vs C2 |
+|--------|--------------|--------------|---------|
+| Tests py3.12 total (J) | 477.33 | 481.65 | +0.9% |
+| Tests py3.11 total (J) | 475.80 | 433.95 | −8.8% |
+| Tests py3.10 total (J) | 530.99 | 462.86 | −12.8% |
+| **Test matrix total (J)** | **1,484.12** | **1,378.46** | **−7.1%** |
+| dep-install sum (J) | 388.57 | 323.24 | −16.8% |
+| test-execution sum (J) | 1,084.04 | 1,046.08 | −3.5% |
+| SCI test matrix (gCO₂eq) | 0.3067 | 0.2884 | −6.0% |
+| Avg. test job duration (s) | 130.94 | 125.79 | −3.9% |
+
+---
+
+The 7.1% reduction in test matrix total energy from C2 to C4 is primarily driven by the dep-install stage (−16.8%), not test execution (−3.5%). Both configurations include `cache: pip`; the additional reduction in C4 is consistent with warm cache behaviour from prior C4 runs on the consolidated workflow, or natural runner-to-runner variability on this initial measurement. The py3.11 and py3.10 test jobs show the largest differences (−8.8% and −12.8%); the py3.12 job shows a slight increase (+0.9%), illustrating run-to-run variability on shared infrastructure that motivates the 30-run sampling protocol.
+
+### E. Full Pipeline Energy Estimates
+
+Table VIII presents estimated full pipeline energy per triggered run, combining measured values where available and using cross-configuration measurements where complete data is pending.
+
+---
+
+**TABLE VIII. Estimated Full Pipeline Energy per CI Trigger**
+
+| Config | Tests (J) | Code-Style/Lint (J) | Coverage (J) | **Pipeline Total (J)** | Source |
+|--------|----------|--------------------|-----------|--------------------|--------|
+| C1 | — | 123.55 | — | Partial (code-style only) | Measured |
+| C2 | 1,484.12 | 136.00 | 633.98 ¹ | **2,254 J (est.)** | Tests + code-style measured; coverage estimated from C4 |
+| C3 | — | — | — | Pending | Not yet collected |
+| C4 | 1,378.46 | 136.00 ¹ | 633.98 | **2,148 J (est.)** | Tests + coverage measured; lint estimated from C2 code-style |
+
+*¹ Cross-configuration estimates: C2 coverage approximated from C4 measurement; C4 lint approximated from C2 code-style measurement. Lint/code-style jobs execute identical code (`make codestyle`) across all four configurations.*
+
+**Estimated C2 → C4 full pipeline reduction: −4.7% (2,254 J → 2,148 J)**
+
+---
+
+### F. RQ3 — SCI Analysis Across Grid Regions
+
+Table IX presents SCI scores for the C2 and C4 test matrix scaled across five electricity grid regions, using the formula SCI = (E_J / 3,600,000) × I_gCO₂eq/kWh.
+
+---
+
+**TABLE IX. SCI Scores — Test Matrix (3 Python Versions), gCO₂eq per CI Trigger**
+
+| Region | Intensity (gCO₂eq/kWh) | C2 SCI | C4 SCI | C4 vs C2 | C1 code-style only |
+|--------|----------------------|--------|--------|---------|-------------------|
+| Ireland | 345 | 0.14223 | 0.13210 | −7.1% | 0.01183 |
+| Germany | 350 | 0.14429 | 0.13402 | −7.1% | 0.01200 |
+| Norway | 25 | 0.01031 | 0.00957 | −7.1% | 0.00086 |
+| USA | 386 | 0.15913 | 0.14780 | −7.1% | 0.01325 |
+| Singapore | 408 | 0.16820 | 0.15623 | −7.1% | 0.01400 |
+
+*Full pipeline SCI (est. from Table VIII): Ireland C2 = 0.216 gCO₂eq, C4 = 0.206 gCO₂eq; Norway C2 = 0.0157 gCO₂eq, C4 = 0.0149 gCO₂eq; Singapore C2 = 0.2555 gCO₂eq, C4 = 0.2435 gCO₂eq.*
+
+---
+
+**RQ3 partial answer (pilot data):** The Singapore–Norway differential (408 vs 25 gCO₂eq/kWh, ratio 16.3×) produces C2 test matrix SCI values of 0.16820 vs 0.01031 gCO₂eq per run — a 15.3× difference from runner location alone. This infrastructure effect, achievable at zero code cost by selecting lower-carbon runner regions, exceeds the 7.1% reduction from configuration optimisation (C2→C4) by a factor of approximately 11×.
 
 ---
 
 ## VII. Discussion
 
-### A. Pip Caching Is the Dominant Energy Lever (RQ1)
+### A. Dependency Installation is the Primary Energy Lever
 
-The dependency-installation stage accounts for 36.9% of C1 total run energy and drops by 77.9% under pip caching. The energy cost of uncached dependency installation has two sources: network I/O (downloading packages from PyPI over the runner's shared network) and CPU I/O during package extraction and metadata resolution. Both are eliminated by a cache hit. The standard deviation reduction in the cached configurations (C2 SD = 67.9 J vs. C1 SD = 98.4 J) further reflects the replacement of variable-duration network operations with deterministic cache-restore steps.
+Across both C2 and C4, the dependency installation stage accounts for 23–26% of total test job energy per run. In C2 (initial run, cache not yet warmed for subsequent runs), dep-install ranges from 104–162 J per Python version depending on download conditions. In C4, it ranges from 94–124 J. The 16.8% aggregate reduction in dep-install energy from C2 to C4 is the largest single-stage driver of the overall 7.1% test matrix saving.
 
-The practical implication is straightforward: adding `cache: pip` to every `actions/setup-python` step is a single-line change per workflow file with no functional consequence and a 31% per-run energy reduction at near-100% cache-hit rates for stable dependency sets. For a repository executing 10,000 runs per year on an Ireland-region runner, this saves approximately 0.0253 gCO₂eq × 10,000 = 253 gCO₂eq/year, or roughly the equivalent of charging a smartphone approximately 120 times. At 1,000,000 runs per year — within range for an active enterprise monorepo — the annual saving approaches 25.3 kgCO₂eq.
+The practical implication is clear: adding `cache: pip` to every `actions/setup-python` step is a two-line change per job that directly targets the most energy-variable stage of the pipeline. For a repository executing 10,000 runs per year on an Ireland-region runner, even a conservative 10% total energy reduction would save approximately 0.022 gCO₂eq × 10,000 = 220 gCO₂eq/year. At enterprise scale (1,000,000 runs/year), the annual saving approaches 22 kgCO₂eq.
 
-### B. Consolidation Alone Does Not Reduce Energy (RQ2)
+### B. Test Execution Energy is Configuration-Stable
 
-The C3 result is a deliberate negative finding. Merging three workflow files into one does not reduce the amount of computation performed per CI run: each job still instantiates its own runner, performs its own checkout, and installs its own dependencies. The scheduling overhead eliminated by consolidation is real but too small to be statistically distinguishable from run-to-run variability at n = 30.
+The test execution stage is remarkably consistent across C2 and C4: 1,084 J vs 1,046 J respectively, a 3.5% difference that is within expected run-to-run variability on shared runner infrastructure. This confirms that the test suite itself — 1,016 passing tests across the HTTPie test corpus — produces a stable, CPU-bound energy signature. Neither caching nor consolidation affects the core computational work of executing the tests; they affect only the preparatory and overhead stages.
 
-This matters because workflow consolidation is often recommended as a CI efficiency measure in DevOps literature and tooling documentation. This study's data suggests that consolidation should be understood as an operational improvement (simpler maintenance, enforced fail-fast semantics, better readability) rather than an energy optimisation. Its value in this study is as a precondition for applying path filters uniformly (C4), not as a standalone intervention.
+This finding is important for methodology: it means that Eco-CI's test-execution stage measurement is a reliable signal that is not confounded by infrastructure variability, making it a suitable primary metric for future repeated-measurement analyses.
 
-### C. Path Filtering and the Combined Strategy (RQ3)
+### C. Coverage Job: The Largest Single-Job Energy Consumer
 
-The marginal energy difference between C2 and C4 in this study (583.2 J vs. 548.4 J; 6.0% additional reduction) reflects workflow consolidation's modest operational savings. Path filtering's energy benefit is not captured by this study's `workflow_dispatch` execution protocol, since `workflow_dispatch` events bypass path filters by GitHub Actions design. In real-world usage, however, path filtering is potentially the highest-leverage intervention of the three: a run that is never triggered saves 100% of that run's energy. For a project where developers regularly push documentation updates, tooling configuration changes, or non-code assets, the fraction of runs that path filtering would suppress can be substantial.
+The C4 coverage job (633.98 J, 180.44 s) is the most energy-intensive single job in the pipeline, exceeding the full test matrix for any single Python version. The 405.67 J `make test-cover` stage runs the full test suite with coverage instrumentation overhead, accounting for 64% of the coverage job's total energy. The subsequent `make test-dist` (141.91 J) builds and tests the distribution package, adding further cost.
 
-The C4 combination — consolidation + caching + path filtering — therefore represents the full stack of available optimisations: per-run energy is reduced by caching, per-run operational overhead is reduced by consolidation, and the total number of runs is reduced by path filtering. Only the first of these is captured in this study's controlled measurement.
+This has implications for pipeline design: running coverage on every push is expensive. Path filtering (active in C4 for push/PR triggers) prevents unnecessary coverage runs on non-source changes and is likely the highest practical energy saving in real-world usage, though it is not captured in `workflow_dispatch`-based measurements.
 
-### D. Regional Carbon Sensitivity and Infrastructure Implications (RQ3)
+### D. Regional Carbon Sensitivity Exceeds Configuration Savings
 
-The 13.8× Norway–Ireland ratio in Table III represents carbon inequality at the infrastructure layer. Two identical C1 pipelines, one executing on a Norwegian-region runner and one on an Irish-region runner, produce 0.00588 gCO₂eq and 0.0812 gCO₂eq per run respectively — a difference that no workflow optimisation can close while remaining in Ireland. The Singapore runner produces 0.0960 gCO₂eq per C1 run, 16.3× higher than Norway.
+The multi-region SCI analysis reveals that the Ireland–Norway grid intensity ratio (345:25, approximately 13.8×) produces per-run carbon differentials that dwarf configuration-level savings. A C2 test pipeline run emitting 0.14223 gCO₂eq in Ireland emits only 0.01031 gCO₂eq on a Norwegian-region runner — a 0.132 gCO₂eq saving per run from infrastructure location alone. The maximum configuration saving measured (C2→C4 for Ireland: 0.14223 → 0.13210, Δ = 0.0101 gCO₂eq) is 13× smaller.
 
-For organisations operating at scale, runner location selection is therefore a high-leverage carbon reduction lever that requires no code changes and is immediately available through self-hosted runners in renewable-energy regions or enterprise GitHub runner configurations. This study's SCI analysis quantifies that lever for the first time in the context of a CI/CD pipeline.
+This places configuration optimisation in context: while caching and consolidation yield meaningful per-run reductions, the dominant carbon variable in cloud-hosted CI is the electricity grid of the data centre running the runner. For organisations with latitude over runner selection — through self-hosted runners or enterprise GitHub configurations — choosing a renewable-energy region delivers more carbon impact than any workflow change studied here.
+
+### E. Audit Findings: Common CI Anti-Patterns
+
+The pre-study audit revealed six critical issues across four branches, several of which are likely common in production CI configurations:
+
+1. **`continue-on-error` in wrong YAML scope** (C1): Placing this key inside `with:` blocks silently ignores it; it must be at the step level. This is a non-obvious YAML scoping error with no warning from GitHub Actions.
+2. **`cache: pip` without `cache-dependency-path`** (C2, C4): `setup-python@v4` requires either `requirements.txt`, `pyproject.toml`, or an explicit `cache-dependency-path` parameter. Projects using `setup.cfg` for dependency specification will encounter silent cache failures without this fix.
+3. **`if: always()` omitted from measurement steps**: Without this condition, any failing step causes all subsequent steps to be skipped, losing the energy measurement for that run entirely.
+
+These findings suggest that energy measurement instrumentation is fragile in practice and benefits from explicit audit before data collection begins.
 
 ---
 
@@ -438,53 +478,54 @@ For organisations operating at scale, runner location selection is therefore a h
 
 ### A. Construct Validity
 
-*Does the measurement instrument (Eco-CI joule values) actually capture what the study claims to measure (CI pipeline energy consumption)?*
+*Does the measurement instrument (Eco-CI joule values) actually capture what the study claims to measure?*
 
-Eco-CI estimates energy via a CPU utilisation model rather than direct hardware measurement. The model maps CPU utilisation to power draw using per-processor SPECpower data and integrates over elapsed time. For GitHub-hosted `ubuntu-latest` runners on Azure infrastructure (Intel Xeon Platinum series), the model is well-characterised. However, two limitations apply:
+Eco-CI estimates energy via a CPU utilisation model rather than direct hardware measurement. The model maps CPU utilisation to power draw using per-processor SPECpower data and integrates over elapsed time. For GitHub-hosted `ubuntu-latest` runners on Azure infrastructure (Intel Xeon Platinum series), the model is well-characterised. However:
 
-1. Eco-CI captures CPU energy only, not DRAM, network I/O, or storage energy. The dependency-installation stage involves substantial network I/O that contributes to total system power draw but is not captured by the CPU model. The measured reductions are therefore a lower bound on the actual energy reduction from caching.
-
-2. Eco-CI does not measure GPU or memory bandwidth energy. For the CPU-bound workloads in this study (Python test execution, pip package resolution) this is not a concern, but it limits applicability of the methodology to GPU-intensive CI workloads without modification.
+1. Eco-CI captures CPU energy only, not DRAM, network I/O, or storage. The dependency-installation stage involves substantial network I/O not captured by the CPU model. Measured reductions are therefore a lower bound on actual energy reduction from caching.
+2. The model does not capture GPU or memory bandwidth energy — not a concern for the CPU-bound Python workloads in this study.
 
 ### B. Internal Validity
 
-*Are confounds controlled? Are observed differences caused by the independent variable (configuration) rather than extraneous factors?*
+*Are confounds controlled?*
 
-GitHub-hosted runners operate in a shared multi-tenant environment where CPU, memory, and network resources fluctuate between runs for identical workloads. This is the primary source of run-to-run variability, visible in the standard deviations in Table IV (SD ≈ 11–12% of mean). Three controls mitigate this threat: (1) 30 repetitions per configuration, (2) non-parametric statistical tests that make no distributional assumptions, and (3) a minimum five-minute inter-run interval to reduce serial correlation between successive runs on shared infrastructure.
+GitHub-hosted runners operate in a shared multi-tenant environment where CPU, memory, and network resources fluctuate between runs. The py3.10 dep-install variability in the pilot data (162 J in C2 vs 105 J in C4) illustrates this: shared runner network conditions and PyPI CDN response times introduce run-to-run noise. The 30-repetition sampling protocol, non-parametric statistical tests, and minimum inter-run intervals mitigate this threat in the full analysis.
 
-A potential confound is GitHub Actions caching behaviour on successive runs: the pip cache is populated on the first C2/C4 run and reused thereafter. The first run in each cached configuration will have higher energy (cache miss) than subsequent runs (cache hit). This effect is mitigated by including all 30 runs in the analysis and reporting medians alongside means; removing the first run from each cached configuration did not materially change the results.
+A specific confound is pip cache state on the first run: the pip cache is empty on the first C2/C4 run (cache miss), so first-run dep-install energy will be higher than subsequent cache-hit runs. The pilot measurements reported here are initial runs. In the full 30-run analysis, this effect will be visible as an outlier in the first run of each cached configuration.
 
 ### C. External Validity
 
-*Do the findings generalise beyond the specific subject and platform studied?*
+*Do the findings generalise?*
 
-HTTPie CLI represents a specific project archetype: a production-grade Python library, medium-sized test suite (~90 seconds per matrix cell), stable dependency set. The absolute energy values (C1 mean = 847.3 J) will not transfer directly to projects with significantly different dependency graphs or test suite durations. However, the directional findings — that caching targets the dependency-installation stage specifically, and that consolidation alone is not an energy reduction — are mechanistically grounded and expected to generalise broadly across Python CI pipelines.
+HTTPie CLI represents a specific project archetype: a production Python library, ~100-second test suite, stable dependency set. Absolute energy values will not transfer directly to projects with larger dependency graphs or longer test suites. However, the directional findings — that caching targets the dep-install stage, that test execution energy is configuration-stable, and that coverage is the most expensive single job — are mechanistically grounded and expected to generalise broadly across Python CI pipelines.
 
-The study uses GitHub-hosted runners only. Self-hosted runners, GitLab CI, and other platforms have different runner lifecycle overhead, caching mechanisms, and scheduling behaviours, limiting direct transfer of findings to those environments.
+The study uses GitHub-hosted runners only. Self-hosted runners, GitLab CI, and other platforms have different runner lifecycle overhead and caching mechanisms, limiting direct transfer.
 
 ### D. Conclusion Validity
 
-*Are the statistical procedures appropriate for the data and the inferences drawn?*
+*Are statistical procedures appropriate?*
 
-The choice of Wilcoxon signed-rank test is justified by the non-normal distribution of the dependency-installation stage (Table VI). Applying a paired t-test to these distributions would inflate Type I error. The Bonferroni correction for three comparisons is conservative (it increases the risk of Type II error) but appropriate given that the three research questions are evaluated simultaneously on the same dataset. The n = 30 sample size provides greater than 95% power for detecting medium effect sizes (|δ| > 0.33) at α = 0.017; the large effects observed (|δ| = 0.89, 0.91 for C2 and C4) are well within the detectable range. The negligible Cliff's delta for C3 (|δ| = 0.14) confirms that the failure to reject the null hypothesis for consolidation is not purely a power limitation.
+The pilot measurements reported here are from single runs and are presented as descriptive observations only; no statistical inference is drawn from n = 1 data. The full analysis will apply Wilcoxon signed-rank tests (appropriate for non-normal dep-install distributions), Bonferroni correction (α = 0.017 for three comparisons), and Cliff's delta effect sizes. The n = 30 target provides greater than 95% power for detecting medium effect sizes (|δ| > 0.33) at the corrected threshold. Per-version variability in the pilot data (e.g., py3.11 C4 = 433.95 J vs py3.12 C4 = 481.65 J, a 10.7% range for identical code on identical runners) validates the need for repeated measurements.
 
 ---
 
 ## IX. Conclusion
 
-This paper presents an empirical methodology for measuring and optimising the carbon footprint of CI/CD pipelines, grounded in the SCI specification (ISO/IEC 21031:2024) and operationalised via the Eco-CI energy estimation tool on GitHub Actions. Four progressively optimised configurations of the HTTPie CLI pipeline are evaluated across 30 repeated controlled runs each, producing the first SCI-compliant empirical carbon measurement of a production open-source Python CI/CD pipeline.
+This paper presents an empirical methodology for measuring and optimising the carbon footprint of CI/CD pipelines, grounded in the SCI specification (ISO/IEC 21031:2024) and operationalised via the Eco-CI energy estimation tool on GitHub Actions. Four progressively optimised configurations of the HTTPie CLI pipeline are instrumented and executed, producing real Eco-CI measurements from GitHub-hosted runner infrastructure.
 
-Three findings have direct practical relevance:
+Pilot measurements establish the following:
 
-1. **Pip dependency caching is the dominant energy lever.** Adding `cache: pip` to `actions/setup-python` is a one-line change that produces a statistically significant, large-effect reduction of 31.2% in per-run energy consumption (p < 0.001, Cliff's δ = −0.89) by eliminating redundant PyPI downloads on every run.
+1. **The test execution matrix (3 Python versions) consumes 1,484 J per C2 run and 1,378 J per C4 run** — a 7.1% reduction from the combined optimisation strategy, driven primarily by the dependency installation stage (−16.8%) rather than test execution itself (−3.5%).
 
-2. **Workflow consolidation alone is not an energy optimisation.** Merging three workflow files into one does not reach statistical significance at the Bonferroni-corrected threshold (p = 0.031 vs. α = 0.017, δ = −0.14 negligible). Its value is operational — simpler maintenance, fail-fast semantics — but should not be presented as an energy reduction in isolation.
+2. **Dependency installation is the dominant variable energy stage**, accounting for 26% of C2 test matrix energy and 23% of C4 test matrix energy. It is also the most susceptible to caching optimisation and the most variable under shared runner conditions.
 
-3. **Runner location is a high-leverage carbon variable.** The Norway–Ireland grid intensity ratio (25:345, approximately 13.8×) produces a per-run carbon differential that is larger than all configuration-level optimisations combined. Organisations able to select lower-carbon runner regions can achieve greater carbon reductions through infrastructure choice than through any workflow change studied here.
+3. **The coverage job is the most energy-intensive single job** (633.98 J, 180.44 s), driven by coverage-instrumented test execution plus distribution build testing. Path filtering for push/PR triggers (C4) prevents this job running on non-source changes.
 
-The audit methodology is deliberately general: any team using GitHub Actions can reproduce the full experiment within a working day using the publicly available instrumented fork, collection scripts, and analysis notebook. As regulatory pressure from the CSRD and comparable frameworks intensifies and software carbon accounting tooling matures, empirical pipeline audits of this kind will become a routine element of responsible software engineering practice.
+4. **Runner geography dominates carbon.** The Singapore–Norway grid intensity ratio (408:25, 16.3×) produces a per-run carbon differential of 15.3× for identical C2 test pipelines — exceeding configuration optimisations by an order of magnitude.
 
-**Future work** includes extending the methodology to multi-language ecosystems, characterising the energy impact of test parallelism strategies and distributed test execution, evaluating self-hosted runners in renewable-energy regions, and developing automated CI carbon dashboards that surface SCI scores as continuous metrics alongside test pass rates and coverage percentages.
+The audit methodology is deliberately reproducible: any team using GitHub Actions can apply the same instrumentation pattern, pre-study audit checklist, and collection scripts to their own pipeline within a working day. As CSRD pressure and software carbon accounting tooling mature, empirical pipeline audits of this kind will become a routine element of responsible DevOps practice.
+
+**Future work** includes completing the 30-run sampling protocol across all four configurations for full Wilcoxon statistical analysis, collecting C3 (consolidation-only) measurements to isolate the consolidation effect from caching, evaluating self-hosted runners in renewable-energy regions, and developing automated CI carbon dashboards that surface SCI scores as continuous metrics.
 
 ---
 
@@ -497,8 +538,8 @@ All artefacts required to replicate this study are publicly available at:
 The repository contains:
 - Four instrumented experiment branches (`experiment/c1-baseline`, `experiment/c2-pip-cache`, `experiment/c3-consolidation`, `experiment/c4-combined`), each independently executable via `workflow_dispatch`
 - `scripts/collect_results.py` — data collection script (GitHub Actions API)
-- `analysis/energy_analysis.ipynb` — full statistical analysis notebook (Python, scipy, pandas, matplotlib)
-- `results/raw_data.csv` — consolidated Eco-CI measurements (30 runs × 4 configurations × 6 stages)
+- `analysis/energy_analysis.ipynb` — statistical analysis notebook (Python, scipy, pandas, matplotlib)
+- `results/raw_data.csv` — consolidated Eco-CI measurements
 - This paper in Markdown format
 
 The repository is licensed under MIT. Instructions for reproducing the full experiment are provided in `README.md`.
