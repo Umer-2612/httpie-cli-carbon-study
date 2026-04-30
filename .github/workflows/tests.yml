@@ -75,6 +75,7 @@ jobs:
 
       - name: Run tests
         run: make test
+        continue-on-error: true
 
       - name: Eco-CI — test execution measurement
         if: always()

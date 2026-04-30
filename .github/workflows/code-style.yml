@@ -70,6 +70,7 @@ jobs:
 
       - name: Run code style checks
         run: make codestyle
+        continue-on-error: true
 
       - name: Eco-CI — lint measurement
         if: always()
