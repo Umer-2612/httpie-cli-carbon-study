@@ -34,45 +34,55 @@ jobs:
           task: start-measurement
         continue-on-error: true
 
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
           label: 'checkout'
         continue-on-error: true
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      - run: make install
+      - name: Install dependencies
+        run: make install
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
           label: 'dependency-installation'
         continue-on-error: true
 
-      - run: make test-cover
+      - name: Run tests with coverage
+        run: make test-cover
 
       - name: Eco-CI — coverage measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
           label: 'coverage'
         continue-on-error: true
 
-      - run: make codecov-upload
+      - name: Upload to Codecov
+        run: make codecov-upload
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_REPO_TOKEN }}
         continue-on-error: true
 
-      - run: make test-dist
+      - name: Test distribution build
+        run: make test-dist
 
-      - name: Eco-CI — post-coverage measurement
+      - name: Eco-CI — dist-test measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -80,6 +90,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results

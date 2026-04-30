@@ -36,31 +36,38 @@ jobs:
           task: start-measurement
         continue-on-error: true
 
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
           label: 'checkout'
         continue-on-error: true
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: '3.9'
 
-      - run: make venv
+      - name: Install dependencies (venv)
+        run: make venv
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
           label: 'dependency-installation'
         continue-on-error: true
 
-      - run: make codestyle
+      - name: Run code style checks
+        run: make codestyle
 
       - name: Eco-CI — lint measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -68,6 +75,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results
