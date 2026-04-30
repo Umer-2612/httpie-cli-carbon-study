@@ -1,20 +1,5 @@
 # ============================================================
-# C3 / C4 — Consolidated CI Workflow with Eco-CI Instrumentation
-#
-# C3 (experiment/c3-consolidation):
-#   - All three stages (lint, test, coverage) in one file
-#   - Single shared pip install step
-#   - No pip caching
-#   - No path filters beyond the file itself
-#
-# C4 (experiment/c4-combined):
-#   - Everything in C3, PLUS:
-#   - cache: pip on setup-python steps
-#   - paths filter: ['httpie/**', 'tests/**', 'setup.*', 'setup.cfg']
-#
-# To switch between C3 and C4:
-#   C3 → remove cache lines and path filter (marked below)
-#   C4 → uncomment cache lines and path filter (marked below)
+# C4 — Combined: Consolidated CI + pip cache + path filters
 # ============================================================
 name: CI Consolidated
 
@@ -27,7 +12,6 @@ on:
     branches:
       - master
       - 'experiment/**'
-    # Path filter active (C4)
     paths:
       - 'httpie/**'
       - 'tests/**'
@@ -35,7 +19,6 @@ on:
       - 'setup.cfg'
       - '.github/workflows/ci-consolidated.yml'
   pull_request:
-    # Path filter active (C4)
     paths:
       - 'httpie/**'
       - 'tests/**'
@@ -45,7 +28,7 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for manual trigger (e.g., research run C3/C4)'
+        description: 'Reason for manual trigger (e.g., research run C4)'
         required: false
         default: 'Manual research run'
 
@@ -68,6 +51,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -84,6 +68,7 @@ jobs:
         run: make venv
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -94,6 +79,7 @@ jobs:
         run: make codestyle
 
       - name: Eco-CI — lint measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -101,6 +87,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results
@@ -116,7 +103,7 @@ jobs:
           retention-days: 30
 
 # ============================================================
-# JOB 2 — Tests (matrix: Python 3.10, 3.11, 3.12 on ubuntu)
+# JOB 2 — Tests (matrix: Python 3.10, 3.11, 3.12)
 # ============================================================
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -142,6 +129,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -158,6 +146,7 @@ jobs:
         run: make install
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -168,6 +157,7 @@ jobs:
         run: make test
 
       - name: Eco-CI — test execution measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -175,6 +165,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results
@@ -208,6 +199,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Eco-CI — checkout measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -224,6 +216,7 @@ jobs:
         run: make install
 
       - name: Eco-CI — dependency installation measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -234,6 +227,7 @@ jobs:
         run: make test-cover
 
       - name: Eco-CI — coverage measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -250,6 +244,7 @@ jobs:
         run: make test-dist
 
       - name: Eco-CI — dist-test measurement
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
@@ -257,6 +252,7 @@ jobs:
         continue-on-error: true
 
       - name: Eco-CI — display results
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: display-results
